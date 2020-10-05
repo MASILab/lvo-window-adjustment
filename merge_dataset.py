@@ -38,7 +38,19 @@ def main():
                                               'copied__ss_betctregmask_cta_registered': 'cta',
                                               'copied__windowmanual_ss_betctregmask_cta_registered': 'cta_windowed'})
 
-    df_combined.to_csv('dataset.csv', index=0)
+    # add binned label to annotate whether the manual window level is less 200 or greater or equal to 200
+    label_list = []
+    for idx, row in df_combined.iterrows():
+        if row['window_level_manual'] < 200:
+            label_list.append(0)
+        else:
+            label_list.append(1)
+
+    df_combined['binned_label'] = label_list
+    print('binned label is 0:', len(df_combined[df_combined['binned_label'] == 0]),
+          'binned label is 1: ', len(df_combined[df_combined['binned_label'] == 1]))
+
+    df_combined.to_csv('csv/dataset.csv', index=0)
 
 
 if __name__ == '__main__':
