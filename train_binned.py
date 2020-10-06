@@ -12,13 +12,13 @@ from tqdm import tqdm
 
 transform = transforms.Compose([transforms.ToTensor()])
 
-train_set = LvoDataLoader(csv_file='csv/dataset.csv', transform=transform, mode='train')
+train_set = LvoDataLoader(csv_file='csv/dataset_bin.csv', transform=transform, mode='train')
 train_loader = torch.utils.data.DataLoader(train_set, batch_size=4, shuffle=True, num_workers=0)
 
-validate_set = LvoDataLoader(csv_file='csv/dataset.csv', transform=transform, mode='val')
+validate_set = LvoDataLoader(csv_file='csv/dataset_bin.csv', transform=transform, mode='val')
 validate_loader = torch.utils.data.DataLoader(validate_set, batch_size=4, shuffle=False, num_workers=0)
 
-test_set = LvoDataLoader(csv_file='csv/dataset.csv', transform=transform, mode='test')
+test_set = LvoDataLoader(csv_file='csv/dataset_bin.csv', transform=transform, mode='test')
 test_loader = torch.utils.data.DataLoader(test_set, batch_size=4, shuffle=False, num_workers=0)
 
 
@@ -33,7 +33,7 @@ def get_model(n_classes, image_channels):
     return model
 
 
-model = get_model(2, 40).cuda()
+model = get_model(2, 3).cuda()
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.0001)

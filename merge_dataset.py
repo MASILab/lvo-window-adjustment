@@ -39,17 +39,20 @@ def main():
                                               'copied__windowmanual_ss_betctregmask_cta_registered': 'cta_windowed'})
 
     # add binned label to annotate whether the manual window level is less 200 or greater or equal to 200
+    df_bin = df_combined.copy()
+    df_bin = df_bin[(df_bin['window_level_manual'] <= 180) | (df_bin['window_level_manual'] >= 220)]
     label_list = []
-    for idx, row in df_combined.iterrows():
-        if row['window_level_manual'] < 200:
+    for idx, row in df_bin.iterrows():
+        if row['window_level_manual'] <= 180:
             label_list.append(0)
         else:
             label_list.append(1)
 
-    df_combined['binned_label'] = label_list
-    print('binned label is 0:', len(df_combined[df_combined['binned_label'] == 0]),
-          'binned label is 1: ', len(df_combined[df_combined['binned_label'] == 1]))
+    df_bin['binned_label'] = label_list
+    print('binned label is 0:', len(df_bin[df_bin['binned_label'] == 0]),
+          'binned label is 1: ', len(df_bin[df_bin['binned_label'] == 1]))
 
+    df_bin.to_csv('csv/dataset_bin.csv', index=0)
     df_combined.to_csv('csv/dataset.csv', index=0)
 
 
