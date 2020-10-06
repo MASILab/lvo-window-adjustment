@@ -9,17 +9,22 @@ import torch.optim as optim
 from utils import AverageMeter, accuracy
 import tqdm
 from tqdm import tqdm
+import torch.nn.functional as F
+import sklearn.metrics as metrics
+import pandas as pd
+import numpy as np
+import os
 
 transform = transforms.Compose([transforms.ToTensor()])
 
 train_set = LvoDataLoader(csv_file='csv/dataset_bin.csv', transform=transform, mode='train')
-train_loader = torch.utils.data.DataLoader(train_set, batch_size=4, shuffle=True, num_workers=0)
+train_loader = torch.utils.data.DataLoader(train_set, batch_size=4, shuffle=True, num_workers=4)
 
 validate_set = LvoDataLoader(csv_file='csv/dataset_bin.csv', transform=transform, mode='val')
-validate_loader = torch.utils.data.DataLoader(validate_set, batch_size=4, shuffle=False, num_workers=0)
+validate_loader = torch.utils.data.DataLoader(validate_set, batch_size=4, shuffle=False, num_workers=4)
 
 test_set = LvoDataLoader(csv_file='csv/dataset_bin.csv', transform=transform, mode='test')
-test_loader = torch.utils.data.DataLoader(test_set, batch_size=4, shuffle=False, num_workers=0)
+test_loader = torch.utils.data.DataLoader(test_set, batch_size=4, shuffle=False, num_workers=4)
 
 
 def get_model(n_classes, image_channels):
@@ -33,7 +38,7 @@ def get_model(n_classes, image_channels):
     return model
 
 
-model = get_model(2, 3).cuda()
+model = get_model(2, 40).cuda()
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.0001)
@@ -73,7 +78,7 @@ def train(train_loader, model, optimizer, criterion):
     return losses.avg, top1.avg
 
 
-def validate(valloader, model, criterion):
+def validate(valloader, model, criterion, epoch):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -86,6 +91,8 @@ def validate(valloader, model, criterion):
 
     with torch.no_grad():
 
+        pred_history = []
+        target_history = []
         for batch_idx, (inputs, targets) in enumerate(tbar):
             # measure data loading time
             data_time.update(time.time() - end)
@@ -102,16 +109,27 @@ def validate(valloader, model, criterion):
             losses.update(loss.item(), inputs.size(0))
             top1.update(prec1.item(), inputs.size(0))
 
+            pred = F.softmax(outputs, dim=1)
+            pred = pred.data.max(1)[1]
+
+            pred_history = np.concatenate((pred_history, pred.data.cpu().numpy()), axis=0)
+            target_history = np.concatenate((target_history, targets.data.cpu().numpy()), axis=0)
+
             # measure elapsed time
             batch_time.update(time.time() - end)
             end = time.time()
 
             tbar.set_description('\r %s Loss: %.3f | Top1: %.3f' % ('Validation', losses.avg, top1.avg))
 
+        df = pd.DataFrame()
+        df['prediction'] = pred_history
+        df['target'] = target_history
+        df.to_csv(os.path.join('epochs', 'epoch_'+str(epoch)+'.csv'))
+
     return losses.avg, top1.avg
 
 
-for epoch in range(10):
+for epoch in range(20):
     print('\nEpoch: [%d | %d] LR: %f' % (epoch + 1, 10, 0.0001))
     train(train_loader, model, optimizer, criterion)
-    validate(validate_loader, model, criterion)
+    validate(validate_loader, model, criterion, epoch)

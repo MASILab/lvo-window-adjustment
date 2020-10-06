@@ -49,8 +49,11 @@ def main():
             label_list.append(1)
 
     df_bin['binned_label'] = label_list
-    print('binned label is 0:', len(df_bin[df_bin['binned_label'] == 0]),
-          'binned label is 1: ', len(df_bin[df_bin['binned_label'] == 1]))
+    print('binned label is 0 in train:', len(df_bin[(df_bin['binned_label'] == 0) & (df_bin['set']=='train')]),
+          'binned label is 1 in train: ', len(df_bin[(df_bin['binned_label'] == 1) & (df_bin['set']=='train')]))
+
+    print('binned label is 0 in validation:', len(df_bin[(df_bin['binned_label'] == 0) & (df_bin['set'] == 'val')]),
+          'binned label is 1 in validation: ', len(df_bin[(df_bin['binned_label'] == 1) & (df_bin['set'] == 'val')]))
 
     df_bin.to_csv('csv/dataset_bin.csv', index=0)
     df_combined.to_csv('csv/dataset.csv', index=0)
