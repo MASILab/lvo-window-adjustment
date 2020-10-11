@@ -55,7 +55,16 @@ def main():
     print('binned label is 0 in validation:', len(df_bin[(df_bin['binned_label'] == 0) & (df_bin['set'] == 'val')]),
           'binned label is 1 in validation: ', len(df_bin[(df_bin['binned_label'] == 1) & (df_bin['set'] == 'val')]))
 
-    df_bin.to_csv('csv/dataset_bin.csv', index=0)
+    # add regression value
+    df_reg_level = df_combined.copy()
+    df_reg_level['regression_level'] = df_reg_level['window_level_manual']
+
+    df_reg_width = df_combined.copy()
+    df_reg_width['regression_width'] = df_reg_width['window_width_manual']
+
+    df_bin.to_csv('csv/dataset_bin_level.csv', index=0)
+    df_reg_level.to_csv('csv/dataset_reg_level.csv', index=0)
+    df_reg_width.to_csv('csv/dataset_reg_width.csv', index=0)
     df_combined.to_csv('csv/dataset.csv', index=0)
 
 

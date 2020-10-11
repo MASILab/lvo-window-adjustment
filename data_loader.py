@@ -2,8 +2,7 @@ from __future__ import print_function, division
 import torch
 import pandas as pd
 import nibabel as nib
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, utils
+from torch.utils.data import Dataset
 
 
 class LvoDataLoader(Dataset):
@@ -27,11 +26,13 @@ class LvoDataLoader(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
+
         img_dir = self.data_frame.iloc[idx, 5]
         image = nib.load(img_dir).get_fdata()[:, :, 120:160]
+        name = self.data_frame.iloc[idx, 0]
         label = self.data_frame.iloc[idx, 9]
 
         if self.transform:
             image = self.transform(image)
 
-        return image, label
+        return name, image, label

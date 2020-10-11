@@ -133,3 +133,4 @@ for epoch in range(20):
     print('\nEpoch: [%d | %d] LR: %f' % (epoch + 1, 10, 0.0001))
     train(train_loader, model, optimizer, criterion)
     validate(validate_loader, model, criterion, epoch)
+
