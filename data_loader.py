@@ -26,11 +26,12 @@ class LvoDataLoader(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-
         img_dir = self.data_frame.iloc[idx, 5]
         image = nib.load(img_dir).get_fdata()[:, :, 120:160]
         name = self.data_frame.iloc[idx, 0]
-        label = self.data_frame.iloc[idx, 9]
+        level = self.data_frame.iloc[idx, 3]
+        width = self.data_frame.iloc[idx, 4]
+        label = (level, width)
 
         if self.transform:
             image = self.transform(image)

@@ -15,8 +15,8 @@ import os
 import math
 
 train_level = False
-train_width = True
-
+train_width = False
+train_both = True
 if train_level:
     data_to_load = 'csv/dataset_reg_level.csv'
     save_epochs_dir = 'results/window_level_reg/epochs'
@@ -26,6 +26,12 @@ elif train_width:
     data_to_load = 'csv/dataset_reg_width.csv'
     save_epochs_dir = 'results/window_width_reg/epochs'
     save_model_dir = 'results/window_width_reg/models'
+
+elif train_both:
+    data_to_load = 'csv/dataset.csv'
+    save_epochs_dir = 'results/window_both_reg/epochs'
+    save_model_dir = 'results/window_both_reg/models'
+
 
 if train_level and train_width:
     assert not (train_width and train_level), 'Should not train both'
@@ -40,7 +46,7 @@ def main():
     validate_set = LvoDataLoader(csv_file=data_to_load, transform=transform, mode='val')
     validate_loader = torch.utils.data.DataLoader(validate_set, batch_size=4, shuffle=False, num_workers=4)
 
-    model = get_model(1, 40).cuda()
+    model = get_model(2, 40).cuda()
 
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.03)
@@ -88,7 +94,7 @@ def train(train_loader, model, optimizer, criterion):
         data_time.update(time.time() - end)
 
         inputs = inputs.float()
-        targets = targets.view(-1, 1).float()
+        targets = torch.stack((targets[0], targets[1])).T.float()
         inputs, targets = inputs.cuda(), targets.cuda()
 
         outputs = model(inputs)
