@@ -1,8 +1,8 @@
 import pandas as pd
-import os
 import matplotlib.pyplot as plt
 import random
 from scipy.stats import ks_2samp
+
 
 def main():
     df = pd.read_csv('csv/dataset.csv')
@@ -59,19 +59,20 @@ def main():
         resplit_set.append(data_split_dict[row['subj']])
 
     df_resplit['set'] = resplit_set
-    df_resplit.to_csv('csv/resplit_dataset.csv')
+    df_resplit.to_csv('csv/resplit_dataset.csv', index=0)
 
     # visualize the distribution within each split
-    viz_dist(train_level, bins, 1)
-    viz_dist(val_level, bins, 2)
-    viz_dist(test_level, bins, 3)
+    viz_dist(train_level, bins, 1, 'train')
+    viz_dist(val_level, bins, 2, 'val')
+    viz_dist(test_level, bins, 3, 'test')
 
     plt.show()
 
 
-def viz_dist(data, bins, num):
+def viz_dist(data, bins, num, split):
     plt.figure(num)
     arr = plt.hist(data, bins=bins, edgecolor='k')
+    plt.title('{} data distribution'.format(split))
     plt.xticks(bins)
     plt.ylim(0, 50)
     for i in range(len(bins)-1):
