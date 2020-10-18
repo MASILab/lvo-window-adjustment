@@ -54,9 +54,10 @@ def main():
     validate_loader = torch.utils.data.DataLoader(validate_set, batch_size=4, shuffle=False, num_workers=4)
 
     model = get_model(2, 40).cuda()
+    learning_rate = 0.0003
 
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.03)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     best_loss = math.inf
 
@@ -65,7 +66,7 @@ def main():
     epoch_history = []
     for epoch in range(20):
         epoch += 1
-        print('\nEpoch: [%d | %d] LR: %f' % (epoch, 20, 0.003))
+        print('\nEpoch: [%d | %d] LR: %f' % (epoch, 20, learning_rate))
         train_loss = train(train_loader, model, optimizer, criterion)
         val_loss = validate(validate_loader, model, criterion, epoch)
 

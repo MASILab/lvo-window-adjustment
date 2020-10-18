@@ -1,16 +1,14 @@
 import matplotlib.pyplot as plt
-import os
 import pandas as pd
 
-level_df = pd.read_csv('results/window_level_reg/test.csv')
-width_df = pd.read_csv('results/window_width_reg/test.csv')
+df = pd.read_csv('results/window_both_resplit_reg/test.csv')
 
 
-level_pred = level_df['prediction']
-width_pred = width_df['prediction']
+level_pred = df['prediction_level']
+width_pred = df['prediction_width']
 
-level_target = level_df['target']
-width_target = width_df['target']
+level_target = df['target_level']
+width_target = df['target_width']
 
 
 def show_scatter_plot(level_pred, width_pred, level_target, width_target):
@@ -29,8 +27,12 @@ show_scatter_plot(level_pred, width_pred, level_target, width_target)
 
 def show_prediction_error(df, task):
     subj = df['subj']
-    pred = df['prediction']
-    tar = df['target']
+    if task == 'window_level':
+        pred = df['prediction_level']
+        tar = df['target_level']
+    else:
+        pred = df['prediction_width']
+        tar = df['target_width']
 
     fig, ax = plt.subplots()
     ax.plot(pred, color='lightblue', marker='o', linestyle='none',
@@ -46,5 +48,5 @@ def show_prediction_error(df, task):
     plt.close()
 
 
-show_prediction_error(level_df, 'window_level')
-show_prediction_error(width_df, 'window_width')
+show_prediction_error(df, 'window_level')
+show_prediction_error(df, 'window_width')
