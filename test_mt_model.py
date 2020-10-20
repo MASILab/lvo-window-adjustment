@@ -9,6 +9,7 @@ from tqdm import tqdm
 import pandas as pd
 import os
 from utils import AverageMeter
+from parallel_fc import ParallelFC
 
 train_both_resplit = False
 train_both_resplit_3fc = True
@@ -16,8 +17,8 @@ train_both_resplit_3fc_34_3e5 = False
 
 if train_both_resplit:
     data_to_load = 'csv/resplit_dataset.csv'
-    best_model_dir = 'results/window_both_resplit_mt_reg/models/best_model.pth'
-    test_result_dir = 'results/window_both_resplit_mt_reg'
+    best_model_dir = 'results/window_both_resplit_reg/models/best_model.pth'
+    test_result_dir = 'results/window_both_resplit_reg'
 
 elif train_both_resplit_3fc:
     data_to_load = 'csv/resplit_dataset.csv'
@@ -56,6 +57,7 @@ def main():
             inputs, targets = inputs.cuda(), targets.cuda(non_blocking=True)
             # compute output
             outputs = model(inputs)
+            outputs = torch.stack((outputs[0].T[0], outputs[1].T[0])).T.float()
 
             loss = criterion(outputs, targets)
             losses.update(loss.item(), inputs.size(0))
@@ -88,9 +90,11 @@ def get_model(n_classes, image_channels):
     model = torchvision.models.resnet18()
     for p in model.parameters():
         p.requires_grad = True
-    model.fc = nn.Sequential(nn.Linear(in_features=512, out_features=256),
-                             nn.Linear(in_features=256, out_features=256),
-                             nn.Linear(in_features=256, out_features=n_classes))
+
+    inf = model.fc.in_features
+    hidf = 256
+    model.fc = ParallelFC(inf, hidf, n_classes)
+
     model.avgpool = nn.AdaptiveAvgPool2d(1)
     model.conv1 = nn.Conv2d(image_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
     return model

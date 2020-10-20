@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-df = pd.read_csv('results/window_both_resplit_reg/test.csv')
+df = pd.read_csv('results/window_both_resplit_3fc_mt_reg/test.csv')
 
 
 level_pred = df['prediction_level']
@@ -34,11 +34,17 @@ def show_prediction_error(df, task):
         pred = df['prediction_width']
         tar = df['target_width']
 
+    data_tuple_list = [(subj, pred, tar) for subj, pred, tar in zip(subj, pred, tar)]
+    data_tuple_list.sort(key=lambda x: x[2])
+    subj = [i[0] for i in data_tuple_list]
+    pred = [i[1] for i in data_tuple_list]
+    tar = [i[2] for i in data_tuple_list]
+
     fig, ax = plt.subplots()
     ax.plot(pred, color='lightblue', marker='o', linestyle='none',
-            markersize=6, label='Prediction')
+            markersize=5, label='Prediction')
     ax.plot(tar, color='red', marker='s', linestyle='none',
-            markersize=6, label='Ground Truth')
+            markersize=3, label='Ground Truth')
     ax.tick_params(axis='x', rotation=90)
     ax.margins(0.05)
     ax.set(xticks=range(len(subj)), xticklabels=subj, ylabel=task)

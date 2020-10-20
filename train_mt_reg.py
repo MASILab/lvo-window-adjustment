@@ -5,6 +5,7 @@ import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
 from data_loader import LvoDataLoader
+from parallel_fc import ParallelFC
 import torch.optim as optim
 from utils import AverageMeter
 import tqdm
@@ -14,6 +15,7 @@ import numpy as np
 import os
 import math
 
+
 train_level = False
 train_width = False
 train_both = False
@@ -21,47 +23,19 @@ train_both_resplit = False
 train_both_resplit_3fc = True
 train_both_resplit_3fc_34 = False
 
-if train_level:
-    data_to_load = 'csv/dataset_reg_level.csv'
-    root_dir = 'results/window_level_reg'
-    save_epochs_dir = 'results/window_level_reg/epochs'
-    save_model_dir = 'results/window_level_reg/models'
-    save_csv_dir = 'results/window_level_reg'
-
-elif train_width:
-    data_to_load = 'csv/dataset_reg_width.csv'
-    root_dir = 'results/window_width_reg'
-    save_epochs_dir = 'results/window_width_reg/epochs'
-    save_model_dir = 'results/window_width_reg/models'
-    save_csv_dir = 'results/window_width_reg'
-
-elif train_both:
-    data_to_load = 'csv/dataset.csv'
-    root_dir = 'results/window_both_reg'
-    save_epochs_dir = 'results/window_both_reg/epochs'
-    save_model_dir = 'results/window_both_reg/models'
-    save_csv_dir = 'results/window_both_reg'
-
-elif train_both_resplit:
+if train_both_resplit_3fc:
     data_to_load = 'csv/resplit_dataset.csv'
-    root_dir = 'results/window_both_resplit_reg'
-    save_epochs_dir = 'results/window_both_resplit_reg/epochs'
-    save_model_dir = 'results/window_both_resplit_reg/models'
-    save_csv_dir = 'results/window_both_resplit_reg'
-
-elif train_both_resplit_3fc:
-    data_to_load = 'csv/resplit_dataset.csv'
-    root_dir = 'results/window_both_resplit_3fc_reg'
-    save_epochs_dir = 'results/window_both_resplit_3fc_reg/epochs'
-    save_model_dir = 'results/window_both_resplit_3fc_reg/models'
-    save_csv_dir = 'results/window_both_resplit_3fc_reg'
+    root_dir = 'results/window_both_resplit_3fc_mt_reg'
+    save_epochs_dir = 'results/window_both_resplit_3fc_mt_reg/epochs'
+    save_model_dir = 'results/window_both_resplit_3fc_mt_reg/models'
+    save_csv_dir = 'results/window_both_resplit_3fc_mt_reg'
 
 elif train_both_resplit_3fc_34:
     data_to_load = 'csv/resplit_dataset.csv'
-    root_dir = 'results/window_both_resplit_3fc_34_3e5_reg'
-    save_epochs_dir = 'results/window_both_resplit_3fc_34_3e5_reg/epochs'
-    save_model_dir = 'results/window_both_resplit_3fc_34_3e5_reg/models'
-    save_csv_dir = 'results/window_both_resplit_3fc_34_3e5_reg'
+    root_dir = 'results/window_both_resplit_3fc_34_3e5_mt_reg'
+    save_epochs_dir = 'results/window_both_resplit_3fc_34_3e5_mt_reg/epochs'
+    save_model_dir = 'results/window_both_resplit_3fc_34_3e5_mt_reg/models'
+    save_csv_dir = 'results/window_both_resplit_3fc_34_3e5_mt_reg'
 
 if not os.path.exists(root_dir):
     os.mkdir(root_dir)
@@ -128,14 +102,11 @@ def get_model(n_classes, image_channels, num_layers=18):
         model = torchvision.models.resnet34()
     for p in model.parameters():
         p.requires_grad = True
-    inf = 512
+    inf = model.fc.in_features
     hidf = 256
-    model.fc = nn.Sequential(nn.Linear(in_features=inf, out_features=hidf),
-                             nn.Linear(in_features=hidf, out_features=hidf),
-                             nn.Linear(in_features=hidf, out_features=n_classes//2))
-    model.fc1 = nn.Sequential(nn.Linear(in_features=inf, out_features=hidf),
-                             nn.Linear(in_features=hidf, out_features=hidf),
-                             nn.Linear(in_features=hidf, out_features=n_classes//2))
+
+    model.fc = ParallelFC(inf, hidf, n_classes)
+
     model.avgpool = nn.AdaptiveAvgPool2d(1)
     model.conv1 = nn.Conv2d(image_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
     return model
@@ -157,7 +128,7 @@ def train(train_loader, model, optimizer, criterion):
         inputs, targets = inputs.cuda(), targets.cuda()
 
         outputs = model(inputs)
-        outputs = outputs.float()
+        outputs = torch.stack((outputs[0].T[0], outputs[1].T[0])).T.float()
         loss = criterion(outputs, targets)
 
         optimizer.zero_grad()
@@ -199,6 +170,7 @@ def validate(valloader, model, criterion, epoch):
             inputs, targets = inputs.cuda(), targets.cuda(non_blocking=True)
             # compute output
             outputs = model(inputs)
+            outputs = torch.stack((outputs[0].T[0], outputs[1].T[0])).T.float()
             # prob_out = F.softmax(outputs, dim=1)
             loss = criterion(outputs, targets)
 
