@@ -4,12 +4,12 @@ class ParallelFC(nn.Module):
     def __init__(self, in_features, hid_features, num_classes):
         super(ParallelFC, self).__init__()
         self.level_fc = nn.Sequential(nn.Linear(in_features=in_features, out_features=hid_features),
-                             nn.Linear(in_features=hid_features, out_features=hid_features),
-                             nn.Linear(in_features=hid_features, out_features=num_classes//2))
+                                      nn.ReLU(inplace=False),
+                                      nn.Linear(in_features=hid_features, out_features=num_classes//2))
 
         self.width_fc = nn.Sequential(nn.Linear(in_features=in_features, out_features=hid_features),
-                             nn.Linear(in_features=hid_features, out_features=hid_features),
-                             nn.Linear(in_features=hid_features, out_features=num_classes//2))
+                                      nn.ReLU(inplace=False),
+                                      nn.Linear(in_features=hid_features, out_features=num_classes//2))
 
     def forward(self, x):
         level = self.level_fc(x)

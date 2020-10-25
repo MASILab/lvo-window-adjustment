@@ -62,6 +62,10 @@ def main():
     df_reg_width = df_combined.copy()
     df_reg_width['regression_width'] = df_reg_width['window_width_manual']
 
+    df_reg_sq = df_combined.copy()
+    df_reg_sq['window_level_manual'] = df_reg_sq['window_level_manual'].apply(lambda x:x**2)
+
+    df_reg_sq.to_csv('csv/dataset_sq_test.csv', index=0)
     df_bin.to_csv('csv/dataset_bin_level.csv', index=0)
     df_reg_level.to_csv('csv/dataset_reg_level.csv', index=0)
     df_reg_width.to_csv('csv/dataset_reg_width.csv', index=0)

@@ -11,7 +11,7 @@ import os
 from utils import AverageMeter
 
 train_both_resplit = False
-train_both_resplit_3fc = True
+train_both_resplit_3fc = False
 train_both_resplit_3fc_34_3e5 = False
 
 if train_both_resplit:

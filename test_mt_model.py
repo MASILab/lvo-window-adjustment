@@ -12,8 +12,10 @@ from utils import AverageMeter
 from parallel_fc import ParallelFC
 
 train_both_resplit = False
-train_both_resplit_3fc = True
+train_both_resplit_3fc = False
 train_both_resplit_3fc_34_3e5 = False
+train_both_resplit_3fc_34_1e4 = True
+sq_test = False
 
 if train_both_resplit:
     data_to_load = 'csv/resplit_dataset.csv'
@@ -29,6 +31,16 @@ elif train_both_resplit_3fc_34_3e5:
     data_to_load = 'csv/resplit_dataset.csv'
     best_model_dir = 'results/window_both_resplit_3fc_34_3e5_mt_reg/models/best_model.pth'
     test_result_dir = 'results/window_both_resplit_3fc_34_3e5_mt_reg'
+
+elif train_both_resplit_3fc_34_1e4:
+    data_to_load = 'csv/resplit_dataset.csv'
+    best_model_dir = 'results/window_both_resplit_3fc_34_1e4_mt_reg/models/best_model.pth'
+    test_result_dir = 'results/window_both_resplit_3fc_34_1e4_mt_reg'
+
+elif sq_test:
+    data_to_load = 'csv/dataset_sq_test.csv'
+    best_model_dir = 'results/window_sq_test/models/best_model.pth'
+    test_result_dir = 'results/window_sq_test'
 
 
 def main():
@@ -87,7 +99,7 @@ def main():
 
 
 def get_model(n_classes, image_channels):
-    model = torchvision.models.resnet18()
+    model = torchvision.models.resnet34()
     for p in model.parameters():
         p.requires_grad = True
 

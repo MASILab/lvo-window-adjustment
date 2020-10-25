@@ -16,12 +16,10 @@ import os
 import math
 
 
-train_level = False
-train_width = False
-train_both = False
 train_both_resplit = False
-train_both_resplit_3fc = True
-train_both_resplit_3fc_34 = False
+train_both_resplit_3fc = False
+train_both_resplit_3fc_34 = True
+sq_test = False
 
 if train_both_resplit_3fc:
     data_to_load = 'csv/resplit_dataset.csv'
@@ -32,10 +30,17 @@ if train_both_resplit_3fc:
 
 elif train_both_resplit_3fc_34:
     data_to_load = 'csv/resplit_dataset.csv'
-    root_dir = 'results/window_both_resplit_3fc_34_3e5_mt_reg'
-    save_epochs_dir = 'results/window_both_resplit_3fc_34_3e5_mt_reg/epochs'
-    save_model_dir = 'results/window_both_resplit_3fc_34_3e5_mt_reg/models'
-    save_csv_dir = 'results/window_both_resplit_3fc_34_3e5_mt_reg'
+    root_dir = 'results/window_both_resplit_3fc_34_1e4_mt_reg'
+    save_epochs_dir = 'results/window_both_resplit_3fc_34_1e4_mt_reg/epochs'
+    save_model_dir = 'results/window_both_resplit_3fc_34_1e4_mt_reg/models'
+    save_csv_dir = 'results/window_both_resplit_3fc_34_1e4_mt_reg'
+
+elif sq_test:
+    data_to_load = 'csv/dataset_sq_test.csv'
+    root_dir = 'results/window_sq_test'
+    save_epochs_dir = 'results/window_sq_test/epochs'
+    save_model_dir = 'results/window_sq_test/models'
+    save_csv_dir = 'results/window_sq_test'
 
 if not os.path.exists(root_dir):
     os.mkdir(root_dir)
@@ -56,8 +61,8 @@ def main():
     validate_set = LvoDataLoader(csv_file=data_to_load, transform=transform, mode='val')
     validate_loader = torch.utils.data.DataLoader(validate_set, batch_size=4, shuffle=False, num_workers=4)
 
-    model = get_model(2, 40, num_layers=18).cuda()
-    learning_rate = 0.00003
+    model = get_model(2, 40, num_layers=34).cuda()
+    learning_rate = 0.0003
 
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)

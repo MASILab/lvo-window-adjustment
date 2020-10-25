@@ -1,8 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-df = pd.read_csv('results/window_both_resplit_3fc_mt_reg/test.csv')
-
+df = pd.read_csv('results/window_both_resplit_3fc_34_1e4_mt_reg/test.csv')
 
 level_pred = df['prediction_level']
 width_pred = df['prediction_width']
