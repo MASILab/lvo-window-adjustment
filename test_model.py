@@ -10,24 +10,12 @@ import pandas as pd
 import os
 from utils import AverageMeter
 
-train_both_resplit = False
-train_both_resplit_3fc = False
-train_both_resplit_3fc_34_3e5 = False
 
-if train_both_resplit:
-    data_to_load = 'csv/resplit_dataset.csv'
-    best_model_dir = 'results/window_both_resplit_mt_reg/models/best_model.pth'
-    test_result_dir = 'results/window_both_resplit_mt_reg'
+data_to_load = 'csv/resplit_dataset.csv'
+best_model_dir = 'results/norm_2d_mt_reg/models/best_model.pth'
+test_result_dir = 'results/norm_2d_mt_reg'
 
-elif train_both_resplit_3fc:
-    data_to_load = 'csv/resplit_dataset.csv'
-    best_model_dir = 'results/window_both_resplit_3fc_mt_reg/models/best_model.pth'
-    test_result_dir = 'results/window_both_resplit_3fc_mt_reg'
 
-elif train_both_resplit_3fc_34_3e5:
-    data_to_load = 'csv/resplit_dataset.csv'
-    best_model_dir = 'results/window_both_resplit_3fc_34_3e5_mt_reg/models/best_model.pth'
-    test_result_dir = 'results/window_both_resplit_3fc_34_3e5_mt_reg'
 
 
 def main():
@@ -36,7 +24,7 @@ def main():
     test_set = LvoDataLoader(csv_file=data_to_load, transform=transform, mode='test')
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=4, shuffle=False, num_workers=4)
 
-    model = get_model(2, 40).cuda()
+    model = get_model(1, 18).cuda()
     model.load_state_dict(torch.load(best_model_dir))
 
     model.eval()

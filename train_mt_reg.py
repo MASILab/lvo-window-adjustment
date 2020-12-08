@@ -14,33 +14,15 @@ import pandas as pd
 import numpy as np
 import os
 import math
+from models import resnet
 
 
-train_both_resplit = False
-train_both_resplit_3fc = False
-train_both_resplit_3fc_34 = True
-sq_test = False
+data_to_load = 'csv/resplit_dataset.csv'
+root_dir = 'results/2d_split_mt_2fc_aug_reg'
+save_epochs_dir = 'results/2d_split_mt_2fc_aug_reg/epochs'
+save_model_dir = 'results/2d_split_mt_2fc_aug_reg/models'
+save_csv_dir = 'results/2d_split_mt_2fc_aug_reg'
 
-if train_both_resplit_3fc:
-    data_to_load = 'csv/resplit_dataset.csv'
-    root_dir = 'results/window_both_resplit_3fc_mt_reg'
-    save_epochs_dir = 'results/window_both_resplit_3fc_mt_reg/epochs'
-    save_model_dir = 'results/window_both_resplit_3fc_mt_reg/models'
-    save_csv_dir = 'results/window_both_resplit_3fc_mt_reg'
-
-elif train_both_resplit_3fc_34:
-    data_to_load = 'csv/resplit_dataset.csv'
-    root_dir = 'results/window_both_resplit_3fc_34_1e4_mt_reg'
-    save_epochs_dir = 'results/window_both_resplit_3fc_34_1e4_mt_reg/epochs'
-    save_model_dir = 'results/window_both_resplit_3fc_34_1e4_mt_reg/models'
-    save_csv_dir = 'results/window_both_resplit_3fc_34_1e4_mt_reg'
-
-elif sq_test:
-    data_to_load = 'csv/dataset_sq_test.csv'
-    root_dir = 'results/window_sq_test'
-    save_epochs_dir = 'results/window_sq_test/epochs'
-    save_model_dir = 'results/window_sq_test/models'
-    save_csv_dir = 'results/window_sq_test'
 
 if not os.path.exists(root_dir):
     os.mkdir(root_dir)
@@ -55,14 +37,15 @@ if not os.path.exists(save_csv_dir):
 def main():
     transform = transforms.Compose([transforms.ToTensor()])
 
-    train_set = LvoDataLoader(csv_file=data_to_load, transform=transform, mode='train')
+    train_set = LvoDataLoader(csv_file=data_to_load, transform=transform, mode='train', augment=True)
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=4, shuffle=True, num_workers=4)
 
-    validate_set = LvoDataLoader(csv_file=data_to_load, transform=transform, mode='val')
+    validate_set = LvoDataLoader(csv_file=data_to_load, transform=transform, mode='val', augment=False)
     validate_loader = torch.utils.data.DataLoader(validate_set, batch_size=4, shuffle=False, num_workers=4)
 
-    model = get_model(2, 40, num_layers=34).cuda()
-    learning_rate = 0.0003
+    model = get_model(1, 40, num_layers=18).cuda()
+    learning_rate = 0.0001
+    num_epochs = 30
 
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -72,9 +55,9 @@ def main():
     train_loss_history = []
     val_loss_history = []
     epoch_history = []
-    for epoch in range(20):
+    for epoch in range(num_epochs):
         epoch += 1
-        print('\nEpoch: [%d | %d] LR: %f' % (epoch, 20, learning_rate))
+        print('\nEpoch: [%d | %d] LR: %f' % (epoch, num_epochs, learning_rate))
         train_loss = train(train_loader, model, optimizer, criterion)
         val_loss = validate(validate_loader, model, criterion, epoch)
 
@@ -102,18 +85,18 @@ def main():
 
 def get_model(n_classes, image_channels, num_layers=18):
     if num_layers == 18:
-        model = torchvision.models.resnet18()
+        model = resnet.resnet18()
     else:
         model = torchvision.models.resnet34()
     for p in model.parameters():
         p.requires_grad = True
-    inf = model.fc.in_features
-    hidf = 256
 
-    model.fc = ParallelFC(inf, hidf, n_classes)
+    #inf = model.fc.in_features
+    #hidf = 256
 
-    model.avgpool = nn.AdaptiveAvgPool2d(1)
-    model.conv1 = nn.Conv2d(image_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
+    #model.fc = ParallelFC(inf, hidf, n_classes)
+    #model.avgpool = nn.AdaptiveAvgPool2d(1)
+    model.conv1 = nn.Conv2d(image_channels, 64, kernel_size=(7, 7), stride=2, padding=3, bias=False)
     return model
 
 
@@ -129,12 +112,19 @@ def train(train_loader, model, optimizer, criterion):
         data_time.update(time.time() - end)
 
         inputs = inputs.float()
-        targets = torch.stack((targets[0], targets[1])).T.float()
+        targets = torch.stack((targets[0], targets[1])).float()
         inputs, targets = inputs.cuda(), targets.cuda()
 
-        outputs = model(inputs)
-        outputs = torch.stack((outputs[0].T[0], outputs[1].T[0])).T.float()
+        outputs = model(inputs).float()
+        #outputs = torch.stack((outputs[0].T[0], outputs[1].T[0])).float()
         loss = criterion(outputs, targets)
+        # output_a = outputs[0]
+        # output_b = outputs[1]
+        # target_a = targets[0]
+        # target_b = targets[1]
+        # loss = 0.8*criterion(output_a, target_a) + 0.2*criterion(output_b, target_b)
+        # loss = criterion(output_a, target_a) + 0.00001 * criterion(output_b, target_b)
+        # loss = (criterion(output_a, target_a) + criterion(output_b, target_b))/2
 
         optimizer.zero_grad()
         loss.backward()
@@ -171,21 +161,29 @@ def validate(valloader, model, criterion, epoch):
             data_time.update(time.time() - end)
 
             inputs = inputs.float()
-            targets = torch.stack((targets[0], targets[1])).T.float()
+            targets = torch.stack((targets[0], targets[1])).float()
             inputs, targets = inputs.cuda(), targets.cuda(non_blocking=True)
             # compute output
             outputs = model(inputs)
-            outputs = torch.stack((outputs[0].T[0], outputs[1].T[0])).T.float()
-            # prob_out = F.softmax(outputs, dim=1)
+            #outputs = torch.stack((outputs[0].T[0], outputs[1].T[0])).float()
+
             loss = criterion(outputs, targets)
+            # prob_out = F.softmax(outputs, dim=1)
+            # output_a = outputs[0]
+            # output_b = outputs[1]
+            # target_a = targets[0]
+            # target_b = targets[1]
+            # loss = 0.3 * criterion(output_a, target_a) + 0.7 * criterion(output_b, target_b)
+            # loss = criterion(output_a, target_a) + 0.00001 * criterion(output_b, target_b)
+            #loss = (criterion(output_a, target_a) + criterion(output_b, target_b))/2
 
             # measure loss
             losses.update(loss.item(), inputs.size(0))
 
-            pred = outputs.T.cpu().numpy()
+            pred = outputs.cpu().numpy()
             pred_level = pred[0]
             pred_width = pred[1]
-            targets = targets.T.cpu().numpy()
+            targets = targets.cpu().numpy()
             target_level = targets[0]
             target_width = targets[1]
 

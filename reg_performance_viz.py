@@ -1,13 +1,13 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-df = pd.read_csv('results/window_both_resplit_3fc_34_1e4_mt_reg/test.csv')
+df = pd.read_csv('results/2d_split_mt_2fc_aug_reg/test.csv')
 
-level_pred = df['prediction_level']
-width_pred = df['prediction_width']
+level_min = 90
+level_range = 210
 
-level_target = df['target_level']
-width_target = df['target_width']
+width_min = 100
+width_range = 500
 
 
 def show_scatter_plot(level_pred, width_pred, level_target, width_target):
@@ -20,6 +20,12 @@ def show_scatter_plot(level_pred, width_pred, level_target, width_target):
     plt.show()
     plt.close()
 
+
+level_pred = df['prediction_level']#.apply(lambda x: x * level_range + level_min)
+width_pred = df['prediction_width']#.apply(lambda x: x * width_range + width_min)
+
+level_target = df['target_level']#.apply(lambda x: x * level_range + level_min)
+width_target = df['target_width']#.apply(lambda x: x * width_range + width_min)
 
 show_scatter_plot(level_pred, width_pred, level_target, width_target)
 

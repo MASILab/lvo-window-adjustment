@@ -10,46 +10,20 @@ import pandas as pd
 import os
 from utils import AverageMeter
 from parallel_fc import ParallelFC
+from models import resnet
 
-train_both_resplit = False
-train_both_resplit_3fc = False
-train_both_resplit_3fc_34_3e5 = False
-train_both_resplit_3fc_34_1e4 = True
-sq_test = False
-
-if train_both_resplit:
-    data_to_load = 'csv/resplit_dataset.csv'
-    best_model_dir = 'results/window_both_resplit_reg/models/best_model.pth'
-    test_result_dir = 'results/window_both_resplit_reg'
-
-elif train_both_resplit_3fc:
-    data_to_load = 'csv/resplit_dataset.csv'
-    best_model_dir = 'results/window_both_resplit_3fc_mt_reg/models/best_model.pth'
-    test_result_dir = 'results/window_both_resplit_3fc_mt_reg'
-
-elif train_both_resplit_3fc_34_3e5:
-    data_to_load = 'csv/resplit_dataset.csv'
-    best_model_dir = 'results/window_both_resplit_3fc_34_3e5_mt_reg/models/best_model.pth'
-    test_result_dir = 'results/window_both_resplit_3fc_34_3e5_mt_reg'
-
-elif train_both_resplit_3fc_34_1e4:
-    data_to_load = 'csv/resplit_dataset.csv'
-    best_model_dir = 'results/window_both_resplit_3fc_34_1e4_mt_reg/models/best_model.pth'
-    test_result_dir = 'results/window_both_resplit_3fc_34_1e4_mt_reg'
-
-elif sq_test:
-    data_to_load = 'csv/dataset_sq_test.csv'
-    best_model_dir = 'results/window_sq_test/models/best_model.pth'
-    test_result_dir = 'results/window_sq_test'
+data_to_load = 'csv/resplit_dataset.csv'
+best_model_dir = 'results/2d_split_mt_2fc_aug_reg/models/best_model.pth'
+test_result_dir = 'results/2d_split_mt_2fc_aug_reg'
 
 
 def main():
     transform = transforms.Compose([transforms.ToTensor()])
 
-    test_set = LvoDataLoader(csv_file=data_to_load, transform=transform, mode='test')
+    test_set = LvoDataLoader(csv_file=data_to_load, transform=transform, mode='test', augment=False)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=4, shuffle=False, num_workers=4)
 
-    model = get_model(2, 40).cuda()
+    model = get_model(1, 40).cuda()
     model.load_state_dict(torch.load(best_model_dir))
 
     model.eval()
@@ -65,19 +39,25 @@ def main():
         for batch_idx, (names, inputs, targets) in enumerate(tbar):
 
             inputs = inputs.float()
-            targets = torch.stack((targets[0], targets[1])).T.float()
+            targets = torch.stack((targets[0], targets[1])).float()
             inputs, targets = inputs.cuda(), targets.cuda(non_blocking=True)
             # compute output
             outputs = model(inputs)
-            outputs = torch.stack((outputs[0].T[0], outputs[1].T[0])).T.float()
-
+            # outputs = torch.stack((outputs[0].T[0], outputs[1].T[0])).float()
+            # output_a = outputs[0]
+            # output_b = outputs[1]
+            # target_a = targets[0]
+            # target_b = targets[1]
+            # loss = 0.3 * criterion(output_a, target_a) + 0.7 * criterion(output_b, target_b)
+            # loss = 0.8*criterion(output_a, target_a) + 0.2*criterion(output_b, target_b)
             loss = criterion(outputs, targets)
+
             losses.update(loss.item(), inputs.size(0))
 
-            pred = outputs.T.cpu().numpy()
+            pred = outputs.cpu().numpy()
             pred_level = pred[0]
             pred_width = pred[1]
-            targets = targets.T.cpu().numpy()
+            targets = targets.cpu().numpy()
             target_level = targets[0]
             target_width = targets[1]
 
@@ -99,16 +79,16 @@ def main():
 
 
 def get_model(n_classes, image_channels):
-    model = torchvision.models.resnet34()
+    model = resnet.resnet18()
     for p in model.parameters():
         p.requires_grad = True
 
-    inf = model.fc.in_features
-    hidf = 256
-    model.fc = ParallelFC(inf, hidf, n_classes)
-
-    model.avgpool = nn.AdaptiveAvgPool2d(1)
-    model.conv1 = nn.Conv2d(image_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
+    # inf = model.fc.in_features
+    # hidf = 256
+    # model.fc = ParallelFC(inf, hidf, n_classes)
+    #
+    # model.avgpool = nn.AdaptiveAvgPool2d(1)
+    model.conv1 = nn.Conv2d(image_channels, 64, kernel_size=(7, 7), stride=2, padding=3, bias=False)
     return model
 
 
