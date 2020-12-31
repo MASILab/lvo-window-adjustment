@@ -3,9 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import math
+import copy
 from functools import partial
 
-__all__ = ['ResNet', 'resnet10', 'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152', 'resnet200']
+__all__ = ['MTResNet', 'mt_resnet10', 'mt_resnet18', 'mt_resnet34', 'mt_resnet50',
+           'mt_resnet101', 'mt_resnet152', 'mt_resnet200']
 
 
 def conv3x3x3(in_planes, out_planes, stride=1):
@@ -98,11 +100,11 @@ class Bottleneck(nn.Module):
         return out
 
 
-class ResNet(nn.Module):
+class MTResNet(nn.Module):
 
     def __init__(self, block, layers, shortcut_type='B', num_classes=1):
         self.inplanes = 64
-        super(ResNet, self).__init__()
+        super(MTResNet, self).__init__()
         self.conv1 = nn.Conv3d(1, 64, kernel_size=7, stride=(1, 1, 2), padding=(3, 3, 3), bias=False)
         self.bn1 = nn.BatchNorm3d(64)
         self.relu = nn.ReLU(inplace=True)
@@ -111,10 +113,13 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 128, layers[1], shortcut_type, stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], shortcut_type, stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], shortcut_type, stride=2)
-
-
         self.avgpool = nn.AdaptiveAvgPool3d(1)
         self.fc = nn.Linear(512 * block.expansion, num_classes)
+
+        self._layer3 = copy.deepcopy(self.layer3)
+        self._layer4 = copy.deepcopy(self.layer4)
+        self._avgpool = copy.deepcopy(self.avgpool)
+        self._fc = copy.deepcopy(self.fc)
 
         for m in self.modules():
             if isinstance(m, nn.Conv3d):
@@ -154,15 +159,23 @@ class ResNet(nn.Module):
 
         x = self.layer1(x)
         x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
+        x1 = self.layer3(x)
+        x1 = self.layer4(x1)
 
-        x = self.avgpool(x)
+        x1 = self.avgpool(x1)
+        x1 = torch.flatten(x1, 1)
+        x1 = self.fc(x1)
 
-        x = x.view(x.size(0), -1)
-        x1, x2 = self.fc(x)
+        x2 = self._layer3(x)
+        x2 = self._layer4(x2)
 
-        return x1, x2
+        x2 = self._avgpool(x2)
+        x2 = torch.flatten(x2, 1)
+        x2 = self._fc(x2)
+
+        _x = torch.cat((x1.T, x2.T), 0)
+
+        return _x
 
 
 def get_fine_tuning_parameters(model, ft_begin_index):
@@ -186,47 +199,47 @@ def get_fine_tuning_parameters(model, ft_begin_index):
     return parameters
 
 
-def resnet10(**kwargs):
+def mt_resnet10(**kwargs):
     """Constructs a ResNet-18 model.
     """
-    model = ResNet(BasicBlock, [1, 1, 1, 1], **kwargs)
+    model = MTResNet(BasicBlock, [1, 1, 1, 1], **kwargs)
     return model
 
-def resnet18(**kwargs):
+def mt_resnet18(**kwargs):
     """Constructs a ResNet-18 model.
     """
-    model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
+    model = MTResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
     return model
 
-def resnet34(**kwargs):
+def mt_resnet34(**kwargs):
     """Constructs a ResNet-34 model.
     """
-    model = ResNet(BasicBlock, [3, 4, 6, 3], **kwargs)
+    model = MTResNet(BasicBlock, [3, 4, 6, 3], **kwargs)
     return model
 
-def resnet50(**kwargs):
+def mt_resnet50(**kwargs):
     """Constructs a ResNet-50 model.
     """
-    model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
+    model = MTResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
     return model
 
 
-def resnet101(**kwargs):
+def mt_resnet101(**kwargs):
     """Constructs a ResNet-101 model.
     """
-    model = ResNet(Bottleneck, [3, 4, 23, 3], **kwargs)
+    model = MTResNet(Bottleneck, [3, 4, 23, 3], **kwargs)
     return model
 
 
-def resnet152(**kwargs):
+def mt_resnet152(**kwargs):
     """Constructs a ResNet-101 model.
     """
-    model = ResNet(Bottleneck, [3, 8, 36, 3], **kwargs)
+    model = MTResNet(Bottleneck, [3, 8, 36, 3], **kwargs)
     return model
 
 
-def resnet200(**kwargs):
+def mt_resnet200(**kwargs):
     """Constructs a ResNet-101 model.
     """
-    model = ResNet(Bottleneck, [3, 24, 36, 3], **kwargs)
+    model = MTResNet(Bottleneck, [3, 24, 36, 3], **kwargs)
     return model

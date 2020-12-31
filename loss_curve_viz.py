@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 
 def main():
-    df = pd.read_csv('results/2d_split_mt_2fc_aug_reg/epochs_summary.csv')
+    df = pd.read_csv('results/2d_split_mt_2fc_reg/epochs_summary.csv')
 
     epochs = [int(i.split('_')[-1]) for i in df['epochs']]
     train_loss = list(df['train_loss'])

@@ -3,7 +3,7 @@ import pandas as pd
 import nibabel as nib
 import os
 
-raw = pd.read_csv('csv/resplit_dataset.csv', index_col=0)
+raw = pd.read_csv('csv/resplit_dataset_backup.csv')
 
 npy_dirs = []
 total = len(raw)
@@ -22,7 +22,7 @@ for index, row in raw.iterrows():
     print(f'Converting {counter}/{total}')
     counter = counter + 1
 
-raw['cta_npy'] = npy_dirs
+raw.insert(6, 'cta_npy', npy_dirs)
 raw.to_csv('csv/resplit_dataset.csv', index=False)
 
 print()

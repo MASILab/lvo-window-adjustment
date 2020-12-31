@@ -9,12 +9,11 @@ from tqdm import tqdm
 import pandas as pd
 import os
 from utils import AverageMeter
-from parallel_fc import ParallelFC
 from models import resnet
 
 data_to_load = 'csv/resplit_dataset.csv'
-best_model_dir = 'results/2d_split_mt_2fc_aug_reg/models/best_model.pth'
-test_result_dir = 'results/2d_split_mt_2fc_aug_reg'
+best_model_dir = 'results/2d_split_mt_1fc_reg/models/best_model.pth'
+test_result_dir = 'results/2d_split_mt_1fc_reg'
 
 
 def main():
@@ -23,7 +22,7 @@ def main():
     test_set = LvoDataLoader(csv_file=data_to_load, transform=transform, mode='test', augment=False)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=4, shuffle=False, num_workers=4)
 
-    model = get_model(1, 40).cuda()
+    model = get_model(image_channels=40).cuda()
     model.load_state_dict(torch.load(best_model_dir))
 
     model.eval()
@@ -42,15 +41,13 @@ def main():
             targets = torch.stack((targets[0], targets[1])).float()
             inputs, targets = inputs.cuda(), targets.cuda(non_blocking=True)
             # compute output
-            outputs = model(inputs)
-            # outputs = torch.stack((outputs[0].T[0], outputs[1].T[0])).float()
-            # output_a = outputs[0]
-            # output_b = outputs[1]
-            # target_a = targets[0]
-            # target_b = targets[1]
-            # loss = 0.3 * criterion(output_a, target_a) + 0.7 * criterion(output_b, target_b)
-            # loss = 0.8*criterion(output_a, target_a) + 0.2*criterion(output_b, target_b)
-            loss = criterion(outputs, targets)
+            outputs = model(inputs).float()
+
+            output_a = outputs[0]
+            output_b = outputs[1]
+            target_a = targets[0]
+            target_b = targets[1]
+            loss = criterion(output_a, target_a) + criterion(output_b, target_b)
 
             losses.update(loss.item(), inputs.size(0))
 
@@ -78,16 +75,11 @@ def main():
         df.to_csv(os.path.join(test_result_dir, 'test.csv'))
 
 
-def get_model(n_classes, image_channels):
+def get_model(image_channels=40):
     model = resnet.resnet18()
     for p in model.parameters():
         p.requires_grad = True
 
-    # inf = model.fc.in_features
-    # hidf = 256
-    # model.fc = ParallelFC(inf, hidf, n_classes)
-    #
-    # model.avgpool = nn.AdaptiveAvgPool2d(1)
     model.conv1 = nn.Conv2d(image_channels, 64, kernel_size=(7, 7), stride=2, padding=3, bias=False)
     return model
 
