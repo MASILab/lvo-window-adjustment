@@ -2,7 +2,7 @@ import torch
 import torchvision
 import torch.nn as nn
 import torchvision.transforms as transforms
-from data_loader import LvoDataLoader
+from data_loader import LvoMTDataLoader
 import numpy as np
 import tqdm
 from tqdm import tqdm
@@ -11,18 +11,20 @@ import os
 from utils import AverageMeter
 from models import resnet
 
-data_to_load = 'csv/resplit_dataset.csv'
-best_model_dir = 'results/2d_split_mt_1fc_reg/models/best_model.pth'
-test_result_dir = 'results/2d_split_mt_1fc_reg'
+norm = False
+num_channels=40
+data_to_load = 'csv/dataset.csv'
+best_model_dir = 'results/resnet_mt_2fc_reg_for_test_1/models/best_model.pth'
+test_result_dir = 'results/resnet_mt_2fc_reg_for_test_1'
 
 
 def main():
     transform = transforms.Compose([transforms.ToTensor()])
 
-    test_set = LvoDataLoader(csv_file=data_to_load, transform=transform, mode='test', augment=False)
+    test_set = LvoMTDataLoader(csv_file=data_to_load, transform=transform, mode='test', augment=False)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=4, shuffle=False, num_workers=4)
 
-    model = get_model(image_channels=40).cuda()
+    model = get_model(image_channels=num_channels).cuda()
     model.load_state_dict(torch.load(best_model_dir))
 
     model.eval()
@@ -68,15 +70,15 @@ def main():
 
         df = pd.DataFrame()
         df['subj'] = name_history
-        df['prediction_level'] = pred_level_history
-        df['prediction_width'] = pred_width_history
-        df['target_level'] = target_level_history
-        df['target_width'] = target_width_history
+        df['prediction_level'] = pred_level_history * 4096 - 1024 if norm else pred_level_history
+        df['prediction_width'] = pred_width_history * 4096 - 1024 if norm else pred_width_history
+        df['target_level'] = target_level_history * 4096 - 1024 if norm else target_level_history
+        df['target_width'] = target_width_history * 4096 - 1024 if norm else target_width_history
         df.to_csv(os.path.join(test_result_dir, 'test.csv'))
 
 
 def get_model(image_channels=40):
-    model = resnet.resnet18()
+    model = resnet.mt_resnet18()
     for p in model.parameters():
         p.requires_grad = True
 

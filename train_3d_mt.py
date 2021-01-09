@@ -2,10 +2,8 @@ import time
 
 import torch
 import torch.nn as nn
-import torchvision
 import torchvision.transforms as transforms
 from data_loader import LvoDataLoader
-from parallel_fc import ParallelFC
 import torch.optim as optim
 from utils import AverageMeter
 import tqdm
@@ -14,14 +12,14 @@ import pandas as pd
 import numpy as np
 import os
 import math
-from models import resnet
+from models_3d.resnet import mt_resnet10
 
 
 data_to_load = 'csv/resplit_dataset.csv'
-root_dir = 'results/2d_split_mt_2fc_aug_reg'
-save_epochs_dir = 'results/2d_split_mt_2fc_aug_reg/epochs'
-save_model_dir = 'results/2d_split_mt_2fc_aug_reg/models'
-save_csv_dir = 'results/2d_split_mt_2fc_aug_reg'
+root_dir = 'results/3d_split_mt_1fc_aug_reg'
+save_epochs_dir = 'results/3d_split_mt_1fc_aug_reg/epochs'
+save_model_dir = 'results/3d_split_mt_1fc_aug_reg/models'
+save_csv_dir = 'results/3d_split_mt_1fc_aug_reg'
 
 
 if not os.path.exists(root_dir):
@@ -37,15 +35,15 @@ if not os.path.exists(save_csv_dir):
 def main():
     transform = transforms.Compose([transforms.ToTensor()])
 
-    train_set = LvoDataLoader(csv_file=data_to_load, transform=transform, mode='train', augment=True)
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=4, shuffle=True, num_workers=4)
+    train_set = LvoDataLoader(csv_file=data_to_load, transform=transform, mode='train', augment=False)
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=1, shuffle=True, num_workers=4)
 
     validate_set = LvoDataLoader(csv_file=data_to_load, transform=transform, mode='val', augment=False)
-    validate_loader = torch.utils.data.DataLoader(validate_set, batch_size=4, shuffle=False, num_workers=4)
+    validate_loader = torch.utils.data.DataLoader(validate_set, batch_size=1, shuffle=False, num_workers=4)
 
-    model = get_model(1, 40, num_layers=18).cuda()
+    model = mt_resnet10().cuda()
     learning_rate = 0.0001
-    num_epochs = 30
+    num_epochs = 60
 
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -83,23 +81,6 @@ def main():
     df.to_csv(output_file)
 
 
-def get_model(n_classes, image_channels, num_layers=18):
-    if num_layers == 18:
-        model = resnet.resnet18()
-    else:
-        model = torchvision.models.resnet34()
-    for p in model.parameters():
-        p.requires_grad = True
-
-    #inf = model.fc.in_features
-    #hidf = 256
-
-    #model.fc = ParallelFC(inf, hidf, n_classes)
-    #model.avgpool = nn.AdaptiveAvgPool2d(1)
-    model.conv1 = nn.Conv2d(image_channels, 64, kernel_size=(7, 7), stride=2, padding=3, bias=False)
-    return model
-
-
 def train(train_loader, model, optimizer, criterion):
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -112,6 +93,7 @@ def train(train_loader, model, optimizer, criterion):
         data_time.update(time.time() - end)
 
         inputs = inputs.float()
+        #inputs = inputs.unsqueeze(0)
         targets = torch.stack((targets[0], targets[1])).float()
         inputs, targets = inputs.cuda(), targets.cuda()
 

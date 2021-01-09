@@ -4,20 +4,15 @@ import numpy as np
 import os
 import copy
 
-prepare_csv = True
-if prepare_csv:
-    data = 'csv/resplit_dataset.csv'
-    pred = 'results/resnet_mt_2fc_reg_chunks/reduced_test.csv'
+data = 'csv/dataset.csv'
+pred = 'results/resnet_mt_2fc_reg_for_test/test.csv'
 
-    df_meta = pd.read_csv(data)
-    df_meta = df_meta[df_meta['set'] == 'test']
-    df_meta = df_meta.loc[:, ['subj', 'cta', 'cta_windowed']]
+df_meta = pd.read_csv(data)
+df_meta = df_meta[df_meta['set'] == 'test']
+df_meta = df_meta.loc[:, ['subj', 'cta', 'cta_windowed']]
 
-    df_pred = pd.read_csv(pred, index_col=0)
-    df_merged = df_pred.merge(df_meta, left_on='subj', right_on='subj')
-    df_merged.to_csv('csv/pre_apply.csv')
-
-df = pd.read_csv('csv/pre_apply.csv')
+df_pred = pd.read_csv(pred, index_col=0)
+df = df_pred.merge(df_meta, left_on='subj', right_on='subj')
 
 auto_windowed_dir = []
 for idx, row in df.iterrows():
@@ -36,8 +31,8 @@ for idx, row in df.iterrows():
         raw_ct[raw_ct < cta_hu_min] = cta_hu_min
         raw_ct[raw_ct > cta_hu_max] = cta_hu_max
         ## normalize to [0,1]
-        adj_data = (raw_ct - np.min(raw_ct))
-        adj_data = adj_data / np.max(adj_data)
+        raw_ct = (raw_ct - np.min(raw_ct))
+        adj_data = raw_ct / np.max(raw_ct)
         ## save changed image as nifti file
         new_img = nib.Nifti1Image(adj_data, nifti.affine, nifti.header)
         nib.save(new_img, out_f_dir)

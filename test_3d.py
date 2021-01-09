@@ -1,28 +1,29 @@
 import torch
-import torchvision
 import torch.nn as nn
 import torchvision.transforms as transforms
-from data_loader import LvoMTDataLoader
+from data_loader import LvoDataLoader
 import numpy as np
 import tqdm
 from tqdm import tqdm
 import pandas as pd
 import os
 from utils import AverageMeter
-from models import mlp
+from utils.parallel_fc import ParallelFC
+from models import simplenet as SimpleNet
 
-data_to_load = 'csv/resplit_dataset_in_chunks.csv'
-best_model_dir = 'results/chunks_mt_mlp/models/best_model.pth'
-test_result_dir = 'results/chunks_mt_mlp'
+
+data_to_load = 'csv/resplit_norm_dataset.csv'
+best_model_dir = 'results/simplenet_1e6_mt_reg/models/best_model.pth'
+test_result_dir = 'results/simplenet_1e6_mt_reg'
 
 
 def main():
     transform = transforms.Compose([transforms.ToTensor()])
 
-    test_set = LvoMTDataLoader(csv_file=data_to_load, transform=transform, mode='test', augment=False)
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size=32, shuffle=False, num_workers=4)
+    test_set = LvoDataLoader(csv_file=data_to_load, transform=transform, mode='test')
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=False, num_workers=4)
 
-    model = get_model(image_channels=1).cuda()
+    model = get_model().cuda()
     model.load_state_dict(torch.load(best_model_dir))
 
     model.eval()
@@ -41,13 +42,14 @@ def main():
             targets = torch.stack((targets[0], targets[1])).float()
             inputs, targets = inputs.cuda(), targets.cuda(non_blocking=True)
             # compute output
-            outputs = model(inputs).float()
-
+            outputs = model(inputs)
+            outputs = torch.stack((outputs[0].T[0], outputs[1].T[0])).float()
             output_a = outputs[0]
             output_b = outputs[1]
             target_a = targets[0]
             target_b = targets[1]
-            loss = criterion(output_a, target_a) + criterion(output_b, target_b)
+            # loss = 0.3 * criterion(output_a, target_a) + 0.7 * criterion(output_b, target_b)
+            loss = (criterion(output_a, target_a) + criterion(output_b, target_b))/2
 
             losses.update(loss.item(), inputs.size(0))
 
@@ -75,10 +77,9 @@ def main():
         df.to_csv(os.path.join(test_result_dir, 'test.csv'))
 
 
-def get_model(image_channels=40):
-    model = mlp.Net()
-    for p in model.parameters():
-        p.requires_grad = True
+def get_model():
+    model = SimpleNet.resnet18()
+    model.fc = ParallelFC(512, 256, 1)
     return model
 
 

@@ -4,8 +4,7 @@ import torch
 import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
-from data_loader import LvoDataLoader
-from parallel_fc import ParallelFC
+from data_loader import LvoMTDataLoader
 import torch.optim as optim
 from utils import AverageMeter
 import tqdm
@@ -14,16 +13,15 @@ import pandas as pd
 import numpy as np
 import os
 import math
-from models import resnet as ResNet
-from models import simplenet as SimpleNet
+from models import resnet
 
+num_channels = 40
+data_to_load = 'csv/dataset.csv'
+root_dir = 'results/resnet_mt_2fc_reg_for_test_1'
+save_epochs_dir = 'results/resnet_mt_2fc_reg_for_test_1/epochs'
+save_model_dir = 'results/resnet_mt_2fc_reg_for_test_1/models'
+save_csv_dir = 'results/resnet_mt_2fc_reg_for_test_1'
 
-
-data_to_load = 'csv/resplit_dataset.csv'
-root_dir = 'results/linear_1e6_mt_reg'
-save_epochs_dir = 'results/linear_1e6_mt_reg/epochs'
-save_model_dir = 'results/linear_1e6_mt_reg/models'
-save_csv_dir = 'results/linear_1e6_mt_reg'
 
 if not os.path.exists(root_dir):
     os.mkdir(root_dir)
@@ -38,15 +36,15 @@ if not os.path.exists(save_csv_dir):
 def main():
     transform = transforms.Compose([transforms.ToTensor()])
 
-    train_set = LvoDataLoader(csv_file=data_to_load, transform=transform, mode='train')
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=1, shuffle=True, num_workers=4)
+    train_set = LvoMTDataLoader(csv_file=data_to_load, transform=transform, mode='train', augment=True)
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=4, shuffle=True, num_workers=4)
 
-    validate_set = LvoDataLoader(csv_file=data_to_load, transform=transform, mode='val')
-    validate_loader = torch.utils.data.DataLoader(validate_set, batch_size=1, shuffle=False, num_workers=4)
+    validate_set = LvoMTDataLoader(csv_file=data_to_load, transform=transform, mode='val', augment=False)
+    validate_loader = torch.utils.data.DataLoader(validate_set, batch_size=4, shuffle=False, num_workers=4)
 
-    model = get_model().cuda()
-    learning_rate = 0.000001
-    num_epochs = 10
+    model = get_model(image_channels=num_channels).cuda()
+    learning_rate = 0.0001
+    num_epochs = 30
 
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -84,9 +82,13 @@ def main():
     df.to_csv(output_file)
 
 
-def get_model():
-    model = ResNet.resnet18()
-    model.fc = ParallelFC(512, 256, 1)
+def get_model(image_channels=40):
+
+    model = resnet.mt_resnet18()
+    for p in model.parameters():
+        p.requires_grad = True
+
+    model.conv1 = nn.Conv2d(image_channels, 64, kernel_size=(7, 7), stride=2, padding=3, bias=False)
     return model
 
 
@@ -105,13 +107,13 @@ def train(train_loader, model, optimizer, criterion):
         targets = torch.stack((targets[0], targets[1])).float()
         inputs, targets = inputs.cuda(), targets.cuda()
 
-        outputs = model(inputs)
-        outputs = torch.stack((outputs[0].T[0], outputs[1].T[0])).float()
-        output_a = outputs[0]
-        output_b = outputs[1]
-        target_a = targets[0]
-        target_b = targets[1]
-        loss = (criterion(output_a, target_a) + criterion(output_b, target_b)) / 2
+        outputs = model(inputs).float()
+
+        output_level = outputs[0]
+        output_width = outputs[1]
+        target_level = targets[0]
+        target_width = targets[1]
+        loss = criterion(output_level, target_level) + criterion(output_width, target_width)
 
         optimizer.zero_grad()
         loss.backward()
@@ -149,16 +151,15 @@ def validate(valloader, model, criterion, epoch):
 
             inputs = inputs.float()
             targets = torch.stack((targets[0], targets[1])).float()
-            inputs, targets = inputs.cuda(), targets.cuda(non_blocking=True)
-            # compute output
-            outputs = model(inputs)
-            outputs = torch.stack((outputs[0].T[0], outputs[1].T[0])).float()
-            # prob_out = F.softmax(outputs, dim=1)
-            output_a = outputs[0]
-            output_b = outputs[1]
-            target_a = targets[0]
-            target_b = targets[1]
-            loss = (criterion(output_a, target_a) + criterion(output_b, target_b))/2
+            inputs, targets = inputs.cuda(), targets.cuda()
+
+            outputs = model(inputs).float()
+
+            output_level = outputs[0]
+            output_width = outputs[1]
+            target_level = targets[0]
+            target_width = targets[1]
+            loss = criterion(output_level, target_level) + criterion(output_width, target_width)
 
             # measure loss
             losses.update(loss.item(), inputs.size(0))
